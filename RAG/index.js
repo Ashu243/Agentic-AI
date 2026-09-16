@@ -9,23 +9,42 @@ const ai = new GoogleGenAI({
 const chunks = [
     {
         id: 1,
-        text: "Refunds are processed within 5 business days after approval."
+        text: "Refunds are processed within 5 business days after approval.",
+        metadata: {
+            source: "refund-policy.pdf",
+            page: 3,
+            section: "Refund Processing"
+        }
     },
     {
         id: 2,
-        text: "Orders are normally shipped within 2 business days."
+        text: "Orders are normally shipped within 2 business days.",
+        metadata: {
+            source: "shipping-policy.pdf",
+            page: 2,
+            section: "Shipping Time"
+        }
     },
     {
         id: 3,
-        text: "Users can reset their password from the account settings page."
+        text: "Users can reset their password from the account settings page.",
+        metadata: {
+            source: "account-help.pdf",
+            page: 5,
+            section: "Password Reset"
+        }
     },
     {
         id: 4,
-        text: "Customers can request a refund within 7 days of receiving their order."
+        text: "Customers can request a refund within 7 days of receiving their order.",
+        metadata: {
+            source: "refund-policy.pdf",
+            page: 2,
+            section: "Refund Eligibility"
+        }
     }
 ];
-
-const user_query = '"When will I get my refund?"'
+const user_query = `i forgot my password. What should i do?`
 
 // Create Embeddings
 async function createEmbedding(text) {
@@ -54,7 +73,7 @@ function cosineSimilarity(a, b) {
     );
 }
 
-async function search(query, top_k) {
+async function search(query, top_k, threshold) {
     const user_embedding = await createEmbedding(query)
     const results = chunks.map((chunk) => {
         const score = cosineSimilarity(chunk.embeddings, user_embedding)
@@ -62,7 +81,7 @@ async function search(query, top_k) {
         return {
             ...chunk, score
         }
-    })
+    }).filter((chunk) => chunk.score >= threshold)
 
     results.sort((a, b) => b.score - a.score)
 
@@ -80,9 +99,9 @@ async function main() {
         );
     }
 
-    const results = await search(user_query, top_k)
+    const results = await search(user_query, top_k, 0.7)
 
-    console.log(`Top ${top_k} results`)
+    console.log(`Retrieved ${results.length} relevant chunks`);
 
     const interaction = await ai.interactions.create({
         model: "gemini-3.6-flash",
@@ -104,7 +123,8 @@ Rules:
 - Use the retrieved context as your source of truth.
 - Do not invent information that is not present in the context.
 - If the context does not contain enough information to answer the question, say that you don't have enough information.
-- Give a concise and direct answer.
+- At the end of your answer, mention the source and page number used.
+- Keep the answer concise.
 `
     });
     console.log(interaction.output_text);
