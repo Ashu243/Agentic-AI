@@ -1,11 +1,8 @@
-
 const fs = require("fs");
-
-const { PDFParse } = require('pdf-parse');
-const chunkText = require("./chunker");
 
 const pool = require("../db/db");
 const createEmbedding = require("./localEmbeddings");
+const textExtractor = require("./extraction");
 
 
 async function insertChunk(chunk) {
@@ -33,18 +30,8 @@ function sleep(ms) {
 async function main() {
     try {
         const pdfBuffer = fs.readFileSync("./documents/sampleforRAG.pdf");
+        const chunks = await textExtractor(pdfBuffer)
 
-        const parser = new PDFParse({
-            data: pdfBuffer
-        });
-
-        const result = await parser.getText();
-
-        const chunks = chunkText(result.text)
-        const uniqueChunks = new Set(chunks)
-
-        console.log(`total lenght: ${chunks.length}`)
-        console.log(`unique chunks: ${uniqueChunks.size}`)
 
         let start = 0;
         const size = 50;
@@ -52,7 +39,9 @@ async function main() {
         while (start < chunks.length) {
             const end = start + size;
 
-            const batchChunks = chunks.slice(start, end);
+            const batch = chunks.slice(start, end);
+
+            const batchChunks = batch.map((chunk)=> chunk.text)
 
             console.log(
                 `Processing chunks ${start} → ${Math.min(end, chunks.length) - 1}`
@@ -66,9 +55,9 @@ async function main() {
                 const ans = {
                     text: batchChunks[i],
                     metadata: {
-                        source: 'sampleforRAG.pdf',
-                        page: 1,
-                        section: null
+                        source: batch[i].metadata.source,
+                        page: batch[i].metadata.page,
+                        section: batch[i].metadata.section
                     },
                     embeddings: results[i]
                 };
