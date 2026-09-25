@@ -1,0 +1,7 @@
+langchain
+langchain-google-genai
+python-dotenv
+
+langchain-huggingface
+transformers
+huggingface-hub

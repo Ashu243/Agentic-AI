@@ -32,7 +32,7 @@ const ai = new GoogleGenAI({
 
 
 
-const user_query = `what are the methods that are in python lists?`
+const user_query = `What is an asynchronous generator?`
 
 
 
