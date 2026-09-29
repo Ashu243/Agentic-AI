@@ -3,6 +3,7 @@ from langchain.tools import tool
 from dotenv import load_dotenv
 
 from langchain_core.output_parsers import StrOutputParser
+from langgraph.checkpoint.sqlite import SqliteSaver
 
 parser = StrOutputParser()
 
@@ -19,20 +20,37 @@ def get_temperature(location: str) -> str:
     """Get the temperature at a location."""
     return f"The temperature in {location} is 39°C."
 
-messages = [{
-    "role": "user",
-    "content": "what's the weather of Gurugram and temperature of Mumbai?"
-}]
+with SqliteSaver.from_conn_string("agent.db") as checkpointer:
 
-agent = create_agent(
-    model="google_genai:gemini-3.5-flash-lite",
-    tools=[get_weather, get_temperature],
+    agent = create_agent(
+        model="google_genai:gemini-3.5-flash-lite",
+        tools=[get_weather, get_temperature],
+        checkpointer=checkpointer,
     )
 
+    config = {
+        "configurable": {
+            "thread_id": "ashu-chat-1"
+        }
+    }
 
-result = agent.invoke({"messages": messages})
+    while True:
 
-for message in result["messages"]:
-    print(type(message).__name__)
-    print(message)
-    print("----------------")
+        user_input = input("You: ")
+
+        if user_input == "exit":
+            break
+
+        result = agent.invoke(
+            {
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": user_input
+                    }
+                ]
+            },
+            config=config
+        )
+
+        print("AI:", result["messages"][-1].content[0]["text"])
