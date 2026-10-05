@@ -1,8 +1,9 @@
 from dotenv import load_dotenv
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langgraph.graph import StateGraph, START, END
-from typing import TypedDict
+from typing import TypedDict, Annotated
 from pydantic import BaseModel, Field
+import operator
 
 load_dotenv()
 
@@ -20,7 +21,7 @@ model_with_Structured_Output = model.with_structured_output(Score)
 class State(TypedDict):
     topic: str
     explanation: str
-    score: int
+    score: Annotated[list[int], operator.add]
     improve: str
 
 graph = StateGraph(State)
@@ -54,11 +55,11 @@ def score_explanation(State: State):
 
     ans = model_with_Structured_Output.invoke(prompt)
     return {
-        'score': ans.score
+        'score': [ans.score]
     }
 
 def check_explanation(State: State):
-    score = State['score']
+    score = State['score'][-1]
 
     if score > 7:
         return "Done"
@@ -87,5 +88,5 @@ final_state = workflow.invoke(initial_state)
 
 
 print(final_state['explanation'], '\n')
-print("final score: ",final_state['score'])
+print("final score: ",final_state['score'][-1])
 print(final_state['improve'])
